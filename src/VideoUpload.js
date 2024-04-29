@@ -1,5 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
+// get our fontawesome imports
+import { faFolderOpen, faHome } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEnvelope } from '@fortawesome/free-solid-svg-icons'
 
 function VideoUpload() {
   const [videoURL, setVideoURL] = useState("");
@@ -232,7 +236,8 @@ function VideoUpload() {
         {isDragActive ? (
           <p>Drop the video here...</p>
         ) : (
-          <p>Drag 'n' drop a video here, or click to select a video</p>
+          <p>Add Video       <FontAwesomeIcon icon={faFolderOpen} />
+          </p>
         )}
       </div>
     </div>
