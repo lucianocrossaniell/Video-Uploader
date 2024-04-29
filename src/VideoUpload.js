@@ -8,8 +8,7 @@ function VideoUpload() {
   const canvasRef = useRef(null);
   const [playTime, setPlayTime] = useState(0);
   const [thumbnails, setThumbnails] = useState([]);
-  const [mainInterval, setMainInterval] = useState(0);
-  const [detailedInterval, setDetailedInterval] = useState(0);
+  const [currentThumbnailIndex, setCurrentThumbnailIndex] = useState(0);
 
   const onDrop = (acceptedFiles) => {
     const file = acceptedFiles[0];
@@ -23,23 +22,16 @@ function VideoUpload() {
       .post("http://localhost:5000/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       })
-      .catch((error) => {
-        console.error("Error uploading video", error);
-      });
+      .catch((error) => console.error("Error uploading video", error));
   };
 
   useEffect(() => {
     if (videoURL && videoRef.current) {
       videoRef.current.addEventListener("loadedmetadata", () => {
-        calculateIntervals(videoRef.current.duration);
+        generateThumbnails(videoRef.current.duration);
       });
     }
   }, [videoURL]);
-
-  const calculateIntervals = (duration) => {
-    setMainInterval(duration / 5);
-    setDetailedInterval(duration / 100);
-  };
 
   const generateThumbnails = (videoSrc) => {
     const video = document.createElement("video");
@@ -47,26 +39,28 @@ function VideoUpload() {
 
     video.addEventListener("loadedmetadata", () => {
       const duration = video.duration;
-      const interval = duration / 100; // More frequent, smaller thumbnails
+      const interval = duration / 50;
       let currentTime = 0;
 
-      video.addEventListener("seeked", async () => {
-        const canvas = canvasRef.current;
-        canvas.width = 60; // Smaller thumbnail width
-        canvas.height = 34; // Smaller thumbnail height
-        const context = canvas.getContext("2d");
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const updateThumbnail = () => {
+        if (currentTime <= duration) {
+          const canvas = canvasRef.current;
+          canvas.width = 120;
+          canvas.height = 68;
+          const context = canvas.getContext("2d");
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        thumbnails.push({ src: canvas.toDataURL(), time: currentTime });
-        setThumbnails([...thumbnails]);
+          const newThumbnail = { src: canvas.toDataURL(), time: currentTime };
+          setThumbnails((prevThumbnails) => [...prevThumbnails, newThumbnail]);
 
-        if (currentTime < duration) {
           currentTime += interval;
           video.currentTime = currentTime;
+        } else {
+          video.removeEventListener("seeked", updateThumbnail);
         }
-      });
+      };
 
-      // Start generating thumbnails
+      video.addEventListener("seeked", updateThumbnail);
       video.currentTime = currentTime;
     });
   };
@@ -80,8 +74,21 @@ function VideoUpload() {
 
   const onTimeUpdate = () => {
     if (videoRef.current) {
-      setPlayTime(videoRef.current.currentTime);
+      const currentTime = videoRef.current.currentTime;
+      setPlayTime(currentTime);
+      const index = thumbnails.findIndex(
+        (thumbnail) => thumbnail.time >= currentTime
+      );
+      setCurrentThumbnailIndex(index >= 0 ? index : currentThumbnailIndex);
     }
+  };
+
+  const getThumbnailOpacity = (index) => {
+    const distance = Math.abs(index - currentThumbnailIndex);
+    if (distance <= 5) {
+      return 1 - distance * 0.15; // Decrease opacity as the distance increases
+    }
+    return 0.1; // Min opacity for thumbnails further away
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -96,35 +103,17 @@ function VideoUpload() {
           <video
             ref={videoRef}
             src={videoURL}
-            width="50%"
-            height="300px"
+            width="100%"
             controls
             onTimeUpdate={onTimeUpdate}
             style={{ display: "block", margin: "auto", background: "black" }}
           />
-          <input
-            type="range"
-            min="0"
-            max={videoRef.current ? videoRef.current.duration : 100}
-            value={playTime}
-            onChange={(e) =>
-              (videoRef.current.currentTime = e.target.valueAsNumber)
-            }
-            style={{
-              width: "100%",
-              appearance: "none",
-              height: "2px",
-              background: "white",
-            }}
-          />
           <div
             style={{
-              display: "flex",
-              overflowX: "auto", // Allow horizontal scrolling
-              whiteSpace: "nowrap", // Prevent thumbnails from wrapping onto the next line
-              justifyContent: "center",
-              flexWrap: "nowrap", // Ensure no wrapping occurs
-              gap: "2px",
+              position: "relative",
+              width: "100%",
+              height: "90px",
+              overflowX: "hidden",
             }}
           >
             {thumbnails.map((thumbnail, index) => (
@@ -133,13 +122,14 @@ function VideoUpload() {
                 src={thumbnail.src}
                 alt={`Thumbnail ${index}`}
                 style={{
-                  width: "30%",
+                  position: "absolute",
+                  width: "160px",
+                  height: "90px",
+                  left: `${index * (160 - 100)}px`,
                   cursor: "pointer",
+                  opacity: getThumbnailOpacity(index),
                   border:
-                    playTime >= thumbnail.time &&
-                    playTime < thumbnail.time + detailedInterval
-                      ? "2px solid red"
-                      : "none",
+                    index === currentThumbnailIndex ? "2px solid red" : "none",
                 }}
                 onClick={() => handleThumbnailClick(thumbnail.time)}
               />
@@ -155,7 +145,7 @@ function VideoUpload() {
         {isDragActive ? (
           <p>Drop the video here...</p>
         ) : (
-          <p> Drag 'n' drop a video here, or click to select a video</p>
+          <p>Drag 'n' drop a video here, or click to select a video</p>
         )}
       </div>
       <canvas ref={canvasRef} style={{ display: "none" }} />
