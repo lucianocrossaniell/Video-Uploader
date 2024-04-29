@@ -234,7 +234,7 @@ function VideoUpload() {
       >
         <input {...getInputProps()} />
         {isDragActive ? (
-          <p>Drop the video here...</p>
+          <p>Add Video here ...</p>
         ) : (
           <p>Add Video       <FontAwesomeIcon icon={faFolderOpen} />
           </p>
