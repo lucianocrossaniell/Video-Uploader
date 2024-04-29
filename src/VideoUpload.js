@@ -96,7 +96,8 @@ function VideoUpload() {
           <video
             ref={videoRef}
             src={videoURL}
-            width="50vw"
+            width="50%"
+            height="300px"
             controls
             onTimeUpdate={onTimeUpdate}
             style={{ display: "block", margin: "auto", background: "black" }}
@@ -132,7 +133,7 @@ function VideoUpload() {
                 src={thumbnail.src}
                 alt={`Thumbnail ${index}`}
                 style={{
-                  width: "60px",
+                  width: "30%",
                   cursor: "pointer",
                   border:
                     playTime >= thumbnail.time &&
