@@ -5,7 +5,7 @@ function VideoUpload() {
   const [videoURL, setVideoURL] = useState("");
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const [playTime, setPlayTime] = useState(0);
+  const [fileName, setFileName] = useState("");
   const [thumbnails, setThumbnails] = useState([]);
   const [currentThumbnailIndex, setCurrentThumbnailIndex] = useState(0);
   const [sliderPosition, setSliderPosition] = useState(0);
@@ -75,6 +75,7 @@ function VideoUpload() {
 
   const onDrop = (acceptedFiles) => {
     const file = acceptedFiles[0];
+    setFileName(file.name)
     const url = URL.createObjectURL(file);
     setVideoURL(url);
     updateSliderPosition(0); // Reset slider to the beginning when a new video is loaded
@@ -85,6 +86,12 @@ function VideoUpload() {
       updateSliderPosition(videoRef.current.currentTime);
     }
   };
+  const formatTime = (timeInSeconds) => {
+    const pad = (num, size) => num.toString().padStart(size, '0');
+    const seconds = Math.floor(timeInSeconds % 60);
+    const minutes = Math.floor((timeInSeconds / 60) % 60);
+    return `${pad(minutes, 2)}:${pad(seconds, 2)}`;
+  };
 
   const updateSliderPosition = (currentTime) => {
     if (timelineRef.current && videoRef.current) {
@@ -92,6 +99,12 @@ function VideoUpload() {
         (currentTime / videoRef.current.duration) *
         timelineRef.current.offsetWidth;
       setSliderPosition(newPosition);
+      // Also update the displayed time
+      const timeDisplay = document.getElementById('time-display');
+      if (timeDisplay) {
+        timeDisplay.textContent = formatTime(currentTime);
+        timeDisplay.style.left = `${newPosition - timeDisplay.offsetWidth / 2}px`; // Center the time display over the slider
+      }
     }
   };
 
@@ -131,6 +144,7 @@ function VideoUpload() {
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
+      {fileName}
       {videoURL && (
         <div>
           <video
@@ -142,44 +156,66 @@ function VideoUpload() {
             style={{ display: "block", margin: "auto", background: "black" }}
           />
           <div
-            ref={timelineRef}
-            className="timeline"
-            style={{
-              position: "relative",
-              width: "100%",
-              height: "90px",
-              overflowX: "hidden",
-              cursor: "pointer",
-              marginTop: "20px",
-            }}
-            onMouseDown={handleMouseDown}
-          >
-            {thumbnails.map((thumbnail, index) => (
-              <img
-                key={index}
-                src={thumbnail.src}
-                alt={`Thumbnail ${index}`}
-                style={{
-                  position: "absolute",
-                  width: `${100 / thumbnails.length}%`, // Ensure thumbnails cover 100% of the width
-                  height: "90px",
-                  left: `${(100 / thumbnails.length) * index}%`,
-                  opacity: calculateThumbnailOpacity(index),
-                }}
-                onClick={() => (videoRef.current.currentTime = thumbnail.time)}
-              />
-            ))}
-            <div
-              style={{
-                position: "absolute",
-                top: "0",
-                left: `${sliderPosition}px`,
-                height: "90px",
-                width: "5px",
-                backgroundColor: "red",
-              }}
-            />
-          </div>
+  ref={timelineRef}
+  className="timeline"
+  style={{
+    position: "relative",
+    width: "100%",
+    height: "90px",
+    overflowX: "hidden",
+    cursor: "pointer",
+    marginTop: "20px",
+  }}
+  onMouseDown={handleMouseDown}
+>
+  {thumbnails.map((thumbnail, index) => (
+    <div
+      key={index}
+      style={{
+        position: "absolute",
+        width: `${100 / thumbnails.length}%`,
+        height: "100%",
+        left: `${(100 / thumbnails.length) * index}%`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <img
+        src={thumbnail.src}
+        alt={`Thumbnail ${index}`}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          objectPosition: "center",
+          opacity: calculateThumbnailOpacity(index),
+        }}
+        onClick={() => (videoRef.current.currentTime = thumbnail.time)}
+      />
+    </div>
+  ))}
+  <div
+    style={{
+      position: "absolute",
+      top: "0",
+      left: `${sliderPosition}px`,
+      height: "90px",
+      width: "5px",
+      backgroundColor: "red",
+    }}
+  />
+  <span
+    id="time-display"
+    style={{
+      position: "absolute",
+      top: "-20px", // Adjust as necessary to position the time display above the slider
+      left: `${sliderPosition}px`,
+      color: "white",
+      whiteSpace: "nowrap", // Ensure the text does not wrap
+    }}
+  >{formatTime(videoRef.current ? videoRef.current.currentTime : 0)}</span>
+</div>
         </div>
       )}
       <canvas
