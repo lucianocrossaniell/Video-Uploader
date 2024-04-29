@@ -103,8 +103,7 @@ function VideoUpload() {
           <video
             ref={videoRef}
             src={videoURL}
-            width="100%"
-            controls
+            width="50%"
             onTimeUpdate={onTimeUpdate}
             style={{ display: "block", margin: "auto", background: "black" }}
           />
