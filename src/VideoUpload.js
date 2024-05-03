@@ -29,13 +29,13 @@ function VideoUpload() {
 
   // Add touch handlers similar to mouse events for mobile support
   const handleTouchStart = (event) => {
-    const touch = event.touches[0];
-    handleMouseDown({ clientX: touch.clientX });
+    const touchX = event.touches[0].clientX;
+    handleMouseDown({ clientX: touchX });
   };
 
   const handleTouchMove = (event) => {
-    const touch = event.touches[0];
-    handleMouseMove({ clientX: touch.clientX });
+    const touchX = event.touches[0].clientX;
+    handleMouseMove({ clientX: touchX });
   };
 
   const handleTouchEnd = () => {
@@ -343,10 +343,9 @@ function VideoUpload() {
             src={videoURL}
             onTimeUpdate={onTimeUpdate}
             loop
-            controls
             style={{
-              display: "block",
               width: "100%",
+              maxHeight: "calc(100vh - 100px)", // Adjust based on your UI layout
               borderRadius: "35px",
             }}
           />
@@ -475,7 +474,7 @@ function VideoUpload() {
               ></div>
             </div>
           </div>
-          <p>press spacebar to pause/play video</p>
+          <p>press spacebar to pause/fplay video</p>
         </div>
       )}
       <canvas
