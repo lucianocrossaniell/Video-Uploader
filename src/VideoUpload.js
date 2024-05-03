@@ -371,7 +371,7 @@ function VideoUpload() {
             muted={true}
             onTimeUpdate={onTimeUpdate}
             loop
-            style={{ display: "block", width: "100%", borderRadius: "10px" }}
+            style={{ display: "block", width: "100%", borderRadius: "35px" }}
             onLoadedData={() => console.log("Video is loaded and can play!")}
             onError={() => console.log("Error loading the video")}
           />
@@ -500,7 +500,7 @@ function VideoUpload() {
               ></div>
             </div>
           </div>
-          <p>press spacebar to pause/fplay video</p>
+          <p>press spacebar to pause/play video</p>
         </div>
       )}
       <canvas
