@@ -11,133 +11,107 @@ function VideoUpload() {
   const [thumbnails, setThumbnails] = useState([]);
   const [sliderPosition, setSliderPosition] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  const [videoTitle, setVideoTitle] = useState(""); // State to hold the video title
+  const [videoTitle, setVideoTitle] = useState("");
   const [currentTimeDisplay, setCurrentTimeDisplay] = useState("00:00");
-  const [loading, setLoading] = useState(true); // State to handle the loading condition
+  const [loading, setLoading] = useState(true);
+  const [fileName, setFileName] = useState("");
+  const [trimStart, setTrimStart] = useState(0);
+  const [trimEnd, setTrimEnd] = useState(null);
+  const [leftHandlePosition, setLeftHandlePosition] = useState(0);
+  const [rightHandlePosition, setRightHandlePosition] = useState(0);
+  const leftHandleRef = useRef(null);
+  const rightHandleRef = useRef(null);
+  const [isPaused, setIsPaused] = useState(true); // Assume video starts paused
+  const [loadingPercentage, setLoadingPercentage] = useState(0);
 
   const timelineRef = useRef(null);
-  const formatTime = (timeInSeconds) => {
-    const pad = (num) => (num < 10 ? "0" + num : num);
-    const minutes = Math.floor(timeInSeconds / 60);
-    const seconds = Math.floor(timeInSeconds % 60);
-    return `${pad(minutes)}:${pad(seconds)}`;
-  };
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    const handleKeyPress = (event) => {
+      if (event.code === "Space" && videoRef.current) {
+        event.preventDefault(); // Prevent scrolling
+        if (videoRef.current.paused) {
+          videoRef.current.play();
+          setIsPaused(false);
+        } else {
+          videoRef.current.pause();
+          setIsPaused(true);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
+  }, []);
 
   useEffect(() => {
     if (videoURL && videoRef.current) {
-      videoRef.current.addEventListener("loadedmetadata", () => {
-        generateThumbnails();
+      const video = videoRef.current;
+      const handleLoadedMetadata = () => {
+        video.play(); // Autoplay the video
+        generateThumbnails(video.duration);
         updateSliderPosition(0);
-      });
+        setTrimEnd(video.duration);
+      };
+      video.addEventListener("loadedmetadata", handleLoadedMetadata);
+      return () =>
+        video.removeEventListener("loadedmetadata", handleLoadedMetadata);
     }
   }, [videoURL]);
 
-  const generateThumbnails = (videoSrc) => {
+  useEffect(() => {
+    document.body.style.backgroundColor = "black";
+    document.body.style.color = "white";
+    return () => {
+      document.body.style.backgroundColor = null;
+      document.body.style.color = null;
+    };
+  }, []);
+  const generateThumbnails = (duration) => {
     const video = document.createElement("video");
-    video.src = videoSrc;
-
+    video.src = videoURL;
     video.addEventListener("loadedmetadata", () => {
-      const duration = video.duration;
-      const interval = duration / 50; // More thumbnails for smoother transitions
+      const interval = duration / 20;
       let currentTime = 0;
+      let count = 0; // To track the number of thumbnails generated
 
       const updateThumbnail = () => {
-        if (currentTime <= duration) {
-          const canvas = canvasRef.current;
-          canvas.width = 120;
-          canvas.height = 68;
-          const context = canvas.getContext("2d");
-          context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-          const newThumbnail = { src: canvas.toDataURL(), time: currentTime };
-          setThumbnails((prevThumbnails) => [...prevThumbnails, newThumbnail]);
-
-          currentTime += interval;
-          video.currentTime = currentTime;
-        } else {
+        if (currentTime > duration) {
           video.removeEventListener("seeked", updateThumbnail);
+          setLoading(false); // Loading is complete
+          return;
         }
+        const canvas = canvasRef.current;
+        canvas.width = 120;
+        canvas.height = 68;
+        const context = canvas.getContext("2d");
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const newThumbnail = { src: canvas.toDataURL(), time: currentTime };
+        setThumbnails((prevThumbnails) => [...prevThumbnails, newThumbnail]);
+
+        count++;
+        setLoadingPercentage((count / 20) * 100); // Update loading percentage
+
+        currentTime += interval;
+        video.currentTime = currentTime;
       };
 
       video.addEventListener("seeked", updateThumbnail);
       video.currentTime = currentTime;
     });
   };
-
-  const captureFrame = (time) => {
-    return new Promise((resolve, reject) => {
-      if (!videoRef.current) {
-        console.error("Video element is not available");
-        resolve(null);
-        return;
-      }
-      // Log the intended seek time.
-      console.log(`Seeking to time: ${time}`);
-
-      const onSeeked = () => {
-        console.log(
-          `Video has seeked to time: ${videoRef.current.currentTime}`
-        );
-        try {
-          if (!canvasRef.current) {
-            console.error("Canvas element is not available");
-            resolve(null);
-            return;
-          }
-          const context = canvasRef.current.getContext("2d");
-          context.clearRect(
-            0,
-            0,
-            canvasRef.current.width,
-            canvasRef.current.height
-          );
-          context.drawImage(
-            videoRef.current,
-            0,
-            0,
-            canvasRef.current.width,
-            canvasRef.current.height
-          );
-          const src = canvasRef.current.toDataURL("image/jpeg");
-          videoRef.current.removeEventListener("seeked", onSeeked);
-          resolve({ src, time });
-        } catch (error) {
-          console.error("Error capturing frame:", error);
-          resolve(null);
-        }
-      };
-
-      videoRef.current.addEventListener("seeked", onSeeked, { once: true });
-      videoRef.current.currentTime = time; // Update currentTime after adding the event listener.
-    });
-  };
-
   const onDrop = (acceptedFiles) => {
-    const file = acceptedFiles[0];
-    const url = URL.createObjectURL(file);
-    setVideoURL(url);
-    generateThumbnails(url);
-
-    const formData = new FormData();
-    formData.append("video", file);
-    axios
-      .post("http://localhost:5000/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      })
-      .catch((error) => console.error("Error uploading video", error));
+    handleFileSelect(acceptedFiles[0]);
   };
-
-  useEffect(() => {
-    if (videoURL && videoRef.current) {
-      videoRef.current.addEventListener("loadedmetadata", () => {
-        generateThumbnails(videoRef.current.duration);
-      });
-    }
-  }, [videoURL]);
 
   const onTimeUpdate = () => {
     if (!isDragging) {
-      updateSliderPosition(videoRef.current.currentTime);
+      const currentTime = videoRef.current.currentTime;
+      if (currentTime >= trimEnd) {
+        videoRef.current.currentTime = trimStart; // Reset to start position
+      }
+      updateSliderPosition(currentTime);
     }
   };
 
@@ -147,26 +121,59 @@ function VideoUpload() {
         (currentTime / videoRef.current.duration) *
         timelineRef.current.offsetWidth;
       setSliderPosition(newPosition);
+      setCurrentTimeDisplay(formatTime(currentTime));
     }
   };
 
-  const handleMouseMove = (event) => {
-    if (isDragging && timelineRef.current) {
-      const rect = timelineRef.current.getBoundingClientRect();
-      const newPosition = Math.max(
-        0,
-        Math.min(event.clientX - rect.left, rect.width)
-      );
-      const percentage = newPosition / rect.width;
-      const newTime = percentage * videoRef.current.duration;
-      setSliderPosition(newPosition);
-      videoRef.current.currentTime = newTime;
-    }
+  const formatTime = (timeInSeconds) => {
+    const pad = (num) => (num < 10 ? "0" + num : num);
+    const minutes = Math.floor((timeInSeconds % 3600) / 60);
+    const seconds = Math.floor(timeInSeconds % 60);
+    return `${pad(minutes)}:${pad(seconds)}`;
   };
 
   const handleMouseDown = (event) => {
-    setIsDragging(true);
-    handleMouseMove(event);
+    const rect = timelineRef.current.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    // Check if click is closer to the left handle
+    if (Math.abs(x - leftHandlePosition) < 10) {
+      setIsDragging("left");
+    } else if (Math.abs(x - rightHandlePosition) < 10) {
+      // Check if click is closer to the right handle
+      setIsDragging("right");
+    }
+  };
+
+  useEffect(() => {
+    if (videoRef.current && timelineRef.current) {
+      const totalWidth = timelineRef.current.offsetWidth;
+      setLeftHandlePosition(
+        (trimStart / videoRef.current.duration) * totalWidth
+      );
+      setRightHandlePosition(
+        (trimEnd / videoRef.current.duration) * totalWidth
+      );
+    }
+  }, [trimStart, trimEnd, videoRef.current]);
+
+  const handleMouseMove = (event) => {
+    if (!isDragging || !timelineRef.current) return;
+    const rect = timelineRef.current.getBoundingClientRect();
+    const newPosition = Math.max(
+      0,
+      Math.min(event.clientX - rect.left, rect.width)
+    );
+
+    if (isDragging === "left") {
+      const newTrimStart =
+        (newPosition / rect.width) * videoRef.current.duration;
+      setTrimStart(newTrimStart);
+      setLeftHandlePosition(newPosition);
+    } else if (isDragging === "right") {
+      const newTrimEnd = (newPosition / rect.width) * videoRef.current.duration;
+      setTrimEnd(newTrimEnd);
+      setRightHandlePosition(newPosition);
+    }
   };
 
   const handleMouseUp = () => {
@@ -178,109 +185,275 @@ function VideoUpload() {
     accept: "video/*",
   });
 
+  const calculatePosition = (time) => {
+    if (videoRef.current && videoRef.current.duration) {
+      return (time / videoRef.current.duration) * 100;
+    }
+    return 0;
+  };
+
+  const handleTimelineClick = (event) => {
+    const rect = timelineRef.current.getBoundingClientRect();
+    const clickPositionX = event.clientX - rect.left; // Get the horizontal position of the click relative to the timeline
+    const positionRatio = clickPositionX / rect.width; // Calculate the ratio of the click position to the total width
+    const newTime = positionRatio * videoRef.current.duration; // Calculate the new time based on the duration of the video
+
+    if (newTime >= trimStart && newTime <= trimEnd) {
+      videoRef.current.currentTime = newTime; // Set the video's current time
+      updateSliderPosition(newTime); // Update the slider position
+    }
+  };
+
+  const handleFileSelect = (file) => {
+    const url = URL.createObjectURL(file);
+    setVideoURL(url);
+    setFileName(file.name);
+
+    const formData = new FormData();
+    formData.append("video", file);
+    axios
+      .post("http://localhost:5000/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      .catch(console.error);
+  };
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file && file.type.startsWith("video")) {
+      const url = URL.createObjectURL(file);
+      setVideoURL(url);
+      setFileName(file.name);
+      setThumbnails([]); // Reset thumbnails for new video
+      updateVideo(file);
+    }
+  };
+
+  const updateVideo = (file) => {
+    const formData = new FormData();
+    formData.append("video", file);
+
+    axios
+      .post("http://localhost:5000/upload", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      })
+      .then((response) => {
+        console.log("Video uploaded successfully");
+      })
+      .catch((error) => {
+        console.error("Error uploading video", error);
+      });
+  };
+
+  const triggerFileSelectPopup = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
   return (
     <div
+      ref={timelineRef}
       style={{
-        background: "black",
-        color: "white",
-        padding: "10px",
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
-        height: "100vh",
+        height: "100vh", // Use viewport height to take full height of the screen
+        width: "100%", // Full width
+        backgroundColor: "black",
       }}
+      onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onClick={handleTimelineClick} // Add click handler here
     >
       {!videoURL && (
         <div
           {...getRootProps()}
           style={{
-            border: "2px dashed white",
+            // border: "2px dashed white",
+            bacgkround: "grey",
             padding: 40,
             textAlign: "center",
             cursor: "pointer",
-            width: "50%", // Ensuring it doesn't take full width
-            marginBottom: "20px",
+
+            background: "#171717",
+            borderRadius: "24px",
           }}
         >
           <input {...getInputProps()} />
           {isDragActive ? (
             <p>Drop the video here...</p>
           ) : (
-            <p>
-              Drag 'n' drop a video here, or click to select a video
+            <>
               <FontAwesomeIcon icon={faFolderOpen} />
-            </p>
+              <br />
+              <p> Open video</p>
+            </>
           )}
         </div>
       )}
+
       {videoURL && (
-        <div style={{ width: "50%" }}>
-          {" "}
-          {/* Container for video and thumbnails */}
+        <div style={{ width: "50%", margin: "auto" }}>
+          <div
+            onClick={triggerFileSelectPopup}
+            style={{
+              cursor: "pointer",
+              marginTop: "20px",
+              color: "white",
+              paddingBottom: "20px",
+            }}
+          >
+            {fileName || "Click here to select another video"}
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            style={{ display: "none" }}
+            accept="video/*"
+            onChange={handleFileChange} // You will define this function next
+          />
+
           <video
             ref={videoRef}
             src={videoURL}
-            //controls
             onTimeUpdate={onTimeUpdate}
+            loop={true}
             style={{
               display: "block",
               width: "100%",
-              borderRadius: "8px", // Increased border radius
+              borderRadius: "35px",
             }}
           />
           <div
-            ref={timelineRef}
             style={{
-              position: "relative",
-              width: "100%",
-              height: "45px",
-              overflowX: "hidden",
-              cursor: "pointer",
-              marginTop: "20px",
-              borderRadius: "8px", // Increased border radius
-              display: "flex",
+              borderRadius: "10px",
+              marginTop: "60px",
             }}
-            onMouseDown={handleMouseDown}
           >
-            {thumbnails.map((thumbnail, index) => (
+            <div
+              ref={timelineRef}
+              style={{
+                position: "relative",
+                width: "100%",
+                height: "45px",
+                cursor: "pointer",
+                borderRadius: "8px",
+                display: "flex",
+              }}
+              onMouseDown={handleMouseDown}
+            >
               <div
-                key={index}
                 style={{
-                  flex: "1 1 auto",
+                  position: "absolute",
+                  left: `${calculatePosition(trimStart)}%`,
+                  right: `${100 - calculatePosition(trimEnd)}%`,
+                  top: 0,
+                  bottom: 0,
+                  border: "solid 1px",
+                  // backgroundColor: "rgba(255, 255, 255, 0.5)", // Semi-transparent white for visibility
+                  zIndex: 2, // Ensure it's above the thumbnails but below other controls
+                }}
+              />
+              {thumbnails.map((thumbnail, index) => (
+                <div
+                  key={index}
+                  style={{
+                    flex: "1 1 auto",
+                    height: "100%",
+                    position: "relative",
+                    // Apply lower opacity if outside the trim range
+                    opacity:
+                      thumbnail.time < trimStart || thumbnail.time > trimEnd
+                        ? 0.2
+                        : 1,
+                  }}
+                >
+                  <img
+                    src={thumbnail.src}
+                    alt={`Thumbnail ${index}`}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      objectPosition: "center",
+                    }}
+                    onClick={() =>
+                      (videoRef.current.currentTime = thumbnail.time)
+                    }
+                  />
+                </div>
+              ))}
+              <div
+                style={{
+                  position: "absolute",
+                  left: `${calculatePosition(trimStart)}%`,
+                  right: `${100 - calculatePosition(trimEnd)}%`,
+                  top: 0,
+                  bottom: 0,
+
+                  zIndex: 2,
+                }}
+              ></div>
+              <div
+                style={{
+                  position: "absolute",
+                  left: `${leftHandlePosition - 15}px`,
                   height: "100%",
-                  position: "relative",
+                  width: "15px",
+                  backgroundColor: "white",
+                  borderRadius: " 15px 0 0 15px  ",
+                  cursor: "ew-resize",
+                  zIndex: 10,
+                }}
+              />
+              {/* Right Handle for End Time */}
+
+              <div
+                style={{
+                  position: "absolute",
+                  left: `${rightHandlePosition}px`,
+                  height: "100%",
+                  width: "15px",
+                  backgroundColor: "white",
+                  cursor: "ew-resize",
+                  zIndex: 10,
+                  borderRadius: "0 15px 15px 0",
+                }}
+              />
+              <p
+                style={{
+                  position: "absolute",
+                  background: "white",
+                  color: "black",
+                  border: "10px",
+                  left: `${sliderPosition - 40}px`,
+                  top: "-60px",
+                  padding: "5px 20px",
+                  borderRadius: "40px",
                 }}
               >
-                <img
-                  src={thumbnail.src}
-                  alt={`Thumbnail ${index}`}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    objectPosition: "center",
-                  }}
-                  onClick={() =>
-                    (videoRef.current.currentTime = thumbnail.time)
-                  }
-                />
-              </div>
-            ))}
-            <div
-              style={{
-                position: "absolute",
-                top: "0",
-                left: `${sliderPosition}px`,
-                height: "90px",
-                width: "5px",
-                backgroundColor: "white",
-                zIndex: 3,
-              }}
-            />
+                {currentTimeDisplay}
+              </p>
+              <div
+                style={{
+                  position: "absolute",
+                  left: `${sliderPosition}px`,
+                  height: "59px",
+                  width: "5px",
+                  backgroundColor: "white",
+                  zIndex: 3,
+                  borderRadius: "50px",
+                  top: "-6px",
+                }}
+              ></div>
+            </div>
           </div>
         </div>
       )}
