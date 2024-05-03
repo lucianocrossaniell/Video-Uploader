@@ -29,6 +29,7 @@ function VideoUpload() {
 
   // Add touch handlers similar to mouse events for mobile support
   const handleTouchStart = (event) => {
+    event.preventDefault(); // Prevent scrolling when you start touching
     const touchX = event.touches[0].clientX;
     handleMouseDown({ clientX: touchX });
   };
@@ -221,16 +222,32 @@ function VideoUpload() {
 
   const handleFileSelect = (file) => {
     const url = URL.createObjectURL(file);
+    console.log("Handling file select:", url);
     setVideoURL(url);
     setFileName(file.name);
+    uploadVideo(file);
+  };
 
+  const uploadVideo = (file) => {
+    // Create an instance of FormData
     const formData = new FormData();
+
+    // Append the file named 'video' (this name should match the expected field on your server)
     formData.append("video", file);
+
+    // Use Axios to send a POST request to your server endpoint
     axios
       .post("http://localhost:5000/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       })
-      .catch(console.error);
+      .then((response) => {
+        console.log("Video uploaded successfully:", response);
+      })
+      .catch((error) => {
+        console.error("Error uploading video:", error);
+      });
   };
 
   const handleFileChange = (event) => {
@@ -341,13 +358,13 @@ function VideoUpload() {
           <video
             ref={videoRef}
             src={videoURL}
+            playsInline
+            muted={true}
             onTimeUpdate={onTimeUpdate}
             loop
-            style={{
-              width: "100%",
-              maxHeight: "calc(100vh - 100px)", // Adjust based on your UI layout
-              borderRadius: "35px",
-            }}
+            style={{ display: "block", width: "100%", borderRadius: "10px" }}
+            onLoadedData={() => console.log("Video is loaded and can play!")}
+            onError={() => console.log("Error loading the video")}
           />
           <div
             style={{
