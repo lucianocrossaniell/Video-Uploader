@@ -29,19 +29,17 @@ function VideoUpload() {
 
   // Add touch handlers similar to mouse events for mobile support
   const handleTouchStart = (event) => {
-    event.preventDefault(); // Prevent scrolling and other native touch interactions
+    event.preventDefault(); // Prevent scrolling when you start touching
     const touchX = event.touches[0].clientX;
     handleMouseDown({ clientX: touchX });
   };
 
   const handleTouchMove = (event) => {
-    event.preventDefault();
     const touchX = event.touches[0].clientX;
     handleMouseMove({ clientX: touchX });
   };
 
-  const handleTouchEnd = (event) => {
-    event.preventDefault();
+  const handleTouchEnd = () => {
     handleMouseUp();
   };
 
