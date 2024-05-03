@@ -27,6 +27,21 @@ function VideoUpload() {
   const timelineRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  // Add touch handlers similar to mouse events for mobile support
+  const handleTouchStart = (event) => {
+    const touch = event.touches[0];
+    handleMouseDown({ clientX: touch.clientX });
+  };
+
+  const handleTouchMove = (event) => {
+    const touch = event.touches[0];
+    handleMouseMove({ clientX: touch.clientX });
+  };
+
+  const handleTouchEnd = () => {
+    handleMouseUp();
+  };
+
   useEffect(() => {
     const handleKeyPress = (event) => {
       if (event.code === "Space" && videoRef.current) {
@@ -253,34 +268,6 @@ function VideoUpload() {
     }
   };
 
-  const handleTouchMove = (event) => {
-    // Prevent the default touch event behavior to stop scrolling while dragging
-    event.preventDefault();
-    if (!isDragging || !timelineRef.current) return;
-
-    const touch = event.touches[0];
-    const rect = timelineRef.current.getBoundingClientRect();
-    const newPosition = Math.max(
-      0,
-      Math.min(touch.clientX - rect.left, rect.width)
-    );
-
-    // Update the timeline based on touch position
-    updateTimelinePosition(newPosition);
-  };
-
-  const updateTimelinePosition = (position) => {
-    if (isDragging === "left") {
-      const newTrimStart = (position / rect.width) * videoRef.current.duration;
-      setTrimStart(newTrimStart);
-      setLeftHandlePosition(position);
-    } else if (isDragging === "right") {
-      const newTrimEnd = (position / rect.width) * videoRef.current.duration;
-      setTrimEnd(newTrimEnd);
-      setRightHandlePosition(position);
-    }
-  };
-
   return (
     <div
       ref={timelineRef}
@@ -293,13 +280,13 @@ function VideoUpload() {
         width: "100%", // Full width
         backgroundColor: "black",
       }}
-      onTouchMove={handleTouchMove}
-      onTouchStart={handleMouseDown} // Use the same logic for start
-      onTouchEnd={handleMouseUp}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       onClick={handleTimelineClick} // Add click handler here
     >
       {!videoURL && (
@@ -307,13 +294,13 @@ function VideoUpload() {
           {...getRootProps()}
           style={{
             // border: "2px dashed white",
-            border: "2px dashed grey",
-            padding: "20px",
+            bacgkround: "grey",
+            padding: 40,
             textAlign: "center",
             cursor: "pointer",
-            width: "90%", // More responsive width
-            maxWidth: "500px", // Maximum width
-            margin: "0 auto", // Centering in the allowed width
+
+            background: "#171717",
+            borderRadius: "24px",
           }}
         >
           <input {...getInputProps()} />
@@ -330,7 +317,7 @@ function VideoUpload() {
       )}
 
       {videoURL && (
-        <div style={{ width: "100%", maxWidth: "500px", textAlign: "center" }}>
+        <div style={{ width: "100%", maxWidth: "800px", margin: "auto" }}>
           <div
             onClick={triggerFileSelectPopup}
             style={{
