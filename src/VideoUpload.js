@@ -87,6 +87,9 @@ function VideoUpload() {
   const generateThumbnails = (duration) => {
     const video = document.createElement("video");
     video.src = videoURL;
+    video.muted = true; // Ensure the video is muted to allow autoplay on iOS
+    video.playsInline = true; // Ensures inline playback on iOS devices
+
     video.addEventListener("loadedmetadata", () => {
       const interval = duration / 20;
       let currentTime = 0;
@@ -94,20 +97,32 @@ function VideoUpload() {
         if (currentTime > duration) {
           video.removeEventListener("seeked", updateThumbnail);
           setLoading(false);
+          console.log("Thumbnails generation completed.");
           return;
         }
         const canvas = canvasRef.current;
-        canvas.width = 80; // Reduced size for better performance on mobile
+        canvas.width = 80; // Reduced size
         canvas.height = 45;
         const context = canvas.getContext("2d");
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const newThumbnail = { src: canvas.toDataURL(), time: currentTime };
-        setThumbnails((prevThumbnails) => [...prevThumbnails, newThumbnail]);
+
+        try {
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const newThumbnail = { src: canvas.toDataURL(), time: currentTime };
+          setThumbnails((prevThumbnails) => [...prevThumbnails, newThumbnail]);
+        } catch (error) {
+          console.error("Error drawing on canvas: ", error);
+        }
+
         currentTime += interval;
         video.currentTime = currentTime;
       };
+
       video.addEventListener("seeked", updateThumbnail);
       video.currentTime = currentTime;
+    });
+
+    video.addEventListener("error", (e) => {
+      console.error("Error with video element: ", e);
     });
   };
 
