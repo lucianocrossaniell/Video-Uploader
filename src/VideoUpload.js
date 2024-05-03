@@ -253,6 +253,34 @@ function VideoUpload() {
     }
   };
 
+  const handleTouchMove = (event) => {
+    // Prevent the default touch event behavior to stop scrolling while dragging
+    event.preventDefault();
+    if (!isDragging || !timelineRef.current) return;
+
+    const touch = event.touches[0];
+    const rect = timelineRef.current.getBoundingClientRect();
+    const newPosition = Math.max(
+      0,
+      Math.min(touch.clientX - rect.left, rect.width)
+    );
+
+    // Update the timeline based on touch position
+    updateTimelinePosition(newPosition);
+  };
+
+  const updateTimelinePosition = (position) => {
+    if (isDragging === "left") {
+      const newTrimStart = (position / rect.width) * videoRef.current.duration;
+      setTrimStart(newTrimStart);
+      setLeftHandlePosition(position);
+    } else if (isDragging === "right") {
+      const newTrimEnd = (position / rect.width) * videoRef.current.duration;
+      setTrimEnd(newTrimEnd);
+      setRightHandlePosition(position);
+    }
+  };
+
   return (
     <div
       ref={timelineRef}
@@ -265,6 +293,9 @@ function VideoUpload() {
         width: "100%", // Full width
         backgroundColor: "black",
       }}
+      onTouchMove={handleTouchMove}
+      onTouchStart={handleMouseDown} // Use the same logic for start
+      onTouchEnd={handleMouseUp}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -276,13 +307,13 @@ function VideoUpload() {
           {...getRootProps()}
           style={{
             // border: "2px dashed white",
-            bacgkround: "grey",
-            padding: 40,
+            border: "2px dashed grey",
+            padding: "20px",
             textAlign: "center",
             cursor: "pointer",
-
-            background: "#171717",
-            borderRadius: "24px",
+            width: "90%", // More responsive width
+            maxWidth: "500px", // Maximum width
+            margin: "0 auto", // Centering in the allowed width
           }}
         >
           <input {...getInputProps()} />
@@ -299,7 +330,7 @@ function VideoUpload() {
       )}
 
       {videoURL && (
-        <div style={{ width: "50%", margin: "auto" }}>
+        <div style={{ width: "100%", maxWidth: "500px", textAlign: "center" }}>
           <div
             onClick={triggerFileSelectPopup}
             style={{
