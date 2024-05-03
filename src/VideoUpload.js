@@ -335,14 +335,15 @@ function VideoUpload() {
             type="file"
             style={{ display: "none" }}
             accept="video/*"
-            onChange={handleFileChange} // You will define this function next
+            onChange={handleFileChange}
           />
 
           <video
             ref={videoRef}
             src={videoURL}
             onTimeUpdate={onTimeUpdate}
-            loop={true}
+            loop
+            controls
             style={{
               display: "block",
               width: "100%",
