@@ -390,6 +390,7 @@ function VideoUpload() {
                   />
                 </div>
               ))}
+
               <div
                 style={{
                   position: "absolute",
@@ -455,6 +456,7 @@ function VideoUpload() {
               ></div>
             </div>
           </div>
+          <p>press spacebar to pause/play video</p>
         </div>
       )}
       <canvas
