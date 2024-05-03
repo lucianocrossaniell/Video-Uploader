@@ -29,17 +29,19 @@ function VideoUpload() {
 
   // Add touch handlers similar to mouse events for mobile support
   const handleTouchStart = (event) => {
-    event.preventDefault(); // Prevent scrolling when you start touching
+    event.preventDefault(); // Prevent scrolling and other native touch interactions
     const touchX = event.touches[0].clientX;
     handleMouseDown({ clientX: touchX });
   };
 
   const handleTouchMove = (event) => {
+    event.preventDefault();
     const touchX = event.touches[0].clientX;
     handleMouseMove({ clientX: touchX });
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (event) => {
+    event.preventDefault();
     handleMouseUp();
   };
 
@@ -83,40 +85,34 @@ function VideoUpload() {
       document.body.style.color = null;
     };
   }, []);
+
   const generateThumbnails = (duration) => {
     const video = document.createElement("video");
     video.src = videoURL;
     video.addEventListener("loadedmetadata", () => {
       const interval = duration / 20;
       let currentTime = 0;
-      let count = 0; // To track the number of thumbnails generated
-
       const updateThumbnail = () => {
         if (currentTime > duration) {
           video.removeEventListener("seeked", updateThumbnail);
-          setLoading(false); // Loading is complete
+          setLoading(false);
           return;
         }
         const canvas = canvasRef.current;
-        canvas.width = 120;
-        canvas.height = 68;
+        canvas.width = 80; // Reduced size for better performance on mobile
+        canvas.height = 45;
         const context = canvas.getContext("2d");
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
         const newThumbnail = { src: canvas.toDataURL(), time: currentTime };
         setThumbnails((prevThumbnails) => [...prevThumbnails, newThumbnail]);
-
-        count++;
-        setLoadingPercentage((count / 20) * 100); // Update loading percentage
-
         currentTime += interval;
         video.currentTime = currentTime;
       };
-
       video.addEventListener("seeked", updateThumbnail);
       video.currentTime = currentTime;
     });
   };
+
   const onDrop = (acceptedFiles) => {
     handleFileSelect(acceptedFiles[0]);
   };
