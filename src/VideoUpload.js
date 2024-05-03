@@ -29,18 +29,33 @@ function VideoUpload() {
 
   // Add touch handlers similar to mouse events for mobile support
   const handleTouchStart = (event) => {
-    event.preventDefault(); // Prevent scrolling when you start touching
+    event.preventDefault(); // Prevent scrolling and other default actions
     const touchX = event.touches[0].clientX;
-    handleMouseDown({ clientX: touchX });
+    const rect = timelineRef.current.getBoundingClientRect();
+    const newPosition = touchX - rect.left; // Calculate position within the timeline
+    updateSliderPositionByPosition(newPosition); // Update based on this position
+    setIsDragging(true); // Start dragging
   };
 
   const handleTouchMove = (event) => {
-    const touchX = event.touches[0].clientX;
-    handleMouseMove({ clientX: touchX });
+    if (isDragging) {
+      const touchX = event.touches[0].clientX;
+      const rect = timelineRef.current.getBoundingClientRect();
+      const newPosition = touchX - rect.left;
+      updateSliderPositionByPosition(newPosition);
+    }
   };
 
   const handleTouchEnd = () => {
-    handleMouseUp();
+    setIsDragging(false); // End dragging
+  };
+
+  const updateSliderPositionByPosition = (positionX) => {
+    const rect = timelineRef.current.getBoundingClientRect();
+    const newPosition = Math.max(0, Math.min(positionX, rect.width));
+    const currentTime = (newPosition / rect.width) * videoRef.current.duration;
+    videoRef.current.currentTime = currentTime;
+    updateSliderPosition(currentTime);
   };
 
   useEffect(() => {
@@ -88,6 +103,7 @@ function VideoUpload() {
     const video = document.createElement("video");
     video.src = videoURL;
     video.muted = true; // Ensure the video is muted to allow autoplay on iOS
+    video.setAttribute("playsinline", ""); // This is crucial for iOS
     video.playsInline = true; // Ensures inline playback on iOS devices
 
     video.addEventListener("loadedmetadata", () => {
@@ -497,6 +513,10 @@ function VideoUpload() {
                   borderRadius: "50px",
                   top: "-6px",
                 }}
+                onMouseDown={handleMouseDown} // Existing handler for desktop
+                onTouchStart={handleTouchStart} // Touch start
+                onTouchMove={handleTouchMove} // Touch move
+                onTouchEnd={handleTouchEnd} // Touch end
               ></div>
             </div>
           </div>
