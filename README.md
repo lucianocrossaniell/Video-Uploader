@@ -2,7 +2,7 @@
 
 #### Luma Design Engineering Take Home 
 
-<img width="1437" alt="Screenshot 2024-05-03 at 5 11 15 PM" src="https://github.com/lcniell123/VideoUploader/assets/14323809/6022387b-08f3-4d1d-a3cb-c119b3e67bfa">
+<img width="1110" alt="Screenshot 2024-05-03 at 5 21 42 PM" src="https://github.com/lcniell123/VideoUploader/assets/14323809/eb933b28-144e-45ac-9c22-757b4fb85432">
 
 
 
