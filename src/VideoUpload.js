@@ -18,7 +18,7 @@ function VideoUpload() {
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(null);
   const [leftHandlePosition, setLeftHandlePosition] = useState(0);
-  const [rightHandlePosition, setRightHandlePosition] = useState(0);
+  const [rightHandlePosition, setRightHandlePosition] = useState(800);
   const leftHandleRef = useRef(null);
   const rightHandleRef = useRef(null);
   const [isPaused, setIsPaused] = useState(true); // Assume video starts paused
@@ -93,6 +93,7 @@ function VideoUpload() {
   useEffect(() => {
     document.body.style.backgroundColor = "black";
     document.body.style.color = "white";
+    // setRightHandlePosition(40);
     return () => {
       document.body.style.backgroundColor = null;
       document.body.style.color = null;
@@ -114,6 +115,11 @@ function VideoUpload() {
           video.removeEventListener("seeked", updateThumbnail);
           setLoading(false);
           console.log("Thumbnails generation completed.");
+
+          if (videoRef.current && timelineRef.current) {
+            const totalWidth = timelineRef.current.offsetWidth;
+            setRightHandlePosition(totalWidth);
+          }
           return;
         }
         const canvas = canvasRef.current;
@@ -191,11 +197,15 @@ function VideoUpload() {
       setLeftHandlePosition(
         (trimStart / videoRef.current.duration) * totalWidth
       );
-      setRightHandlePosition(
-        (trimEnd / videoRef.current.duration) * totalWidth
+      const right = (trimEnd / videoRef.current.duration) * totalWidth;
+      console.log(
+        "eq",
+        (trimEnd / videoRef.current.duration) * totalWidth,
+        trimEnd,
+        totalWidth
       );
     }
-  }, [trimStart, trimEnd, videoRef.current]);
+  }, [videoURL, trimStart, trimEnd, videoRef.current, timelineRef.current]);
 
   const handleMouseMove = (event) => {
     if (!isDragging || !timelineRef.current) return;
@@ -250,6 +260,7 @@ function VideoUpload() {
     console.log("Handling file select:", url);
     setVideoURL(url);
     setFileName(file.name);
+    setLoading(true);
     uploadVideo(file);
   };
 
@@ -269,9 +280,11 @@ function VideoUpload() {
       })
       .then((response) => {
         console.log("Video uploaded successfully:", response);
+        setLoading(false);
       })
       .catch((error) => {
         console.error("Error uploading video:", error);
+        setLoading(false);
       });
   };
 
@@ -359,7 +372,14 @@ function VideoUpload() {
       )}
 
       {videoURL && (
-        <div style={{ width: "100%", maxWidth: "800px", margin: "auto" }}>
+        <div
+          style={{
+            width: "100%",
+            maxWidth: "800px",
+            margin: "auto",
+            position: "relative",
+          }}
+        >
           <div
             onClick={triggerFileSelectPopup}
             style={{
@@ -407,6 +427,128 @@ function VideoUpload() {
                 borderRadius: "8px",
                 display: "flex",
               }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  bottom: 0,
+                  zIndex: 2,
+                }}
+              />
+
+              {thumbnails.map((thumbnail, index) => (
+                <div
+                  key={index}
+                  style={{
+                    flex: "1 1 auto",
+                    height: "100%",
+                    position: "relative",
+                    // Apply lower opacity if outside the trim range
+                    opacity: 0.2,
+                  }}
+                >
+                  <img
+                    src={thumbnail.src}
+                    alt={`Thumbnail ${index}`}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      objectPosition: "center",
+                    }}
+                  />
+                </div>
+              ))}
+
+              <div
+                style={{
+                  position: "absolute",
+
+                  top: 0,
+                  bottom: 0,
+
+                  zIndex: 2,
+                }}
+              ></div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              borderRadius: "10px",
+              marginTop: "-46px",
+              position: "absolute",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                left: `${sliderPosition}px`,
+                height: "59px",
+                width: "5px",
+                backgroundColor: "white",
+                zIndex: 3,
+                borderRadius: "50px",
+                top: "-6px",
+              }}
+              onMouseDown={handleMouseDown} // Existing handler for desktop
+              onTouchStart={handleTouchStart} // Touch start
+              onTouchMove={handleTouchMove} // Touch move
+              onTouchEnd={handleTouchEnd} // Touch end
+            ></div>
+            <div
+              style={{
+                position: "absolute",
+                left: `${leftHandlePosition - 15}px`,
+                height: "100%",
+                width: "15px",
+                backgroundColor: "white",
+                borderRadius: " 15px 0 0 15px  ",
+                cursor: "ew-resize",
+                zIndex: 10,
+              }}
+            />
+
+            <div
+              style={{
+                position: "absolute",
+                left: `${rightHandlePosition}px`,
+                height: "100%",
+                width: "15px",
+                backgroundColor: "white",
+                cursor: "ew-resize",
+                zIndex: 10,
+                borderRadius: "0 15px 15px 0",
+              }}
+            />
+            <p
+              style={{
+                position: "absolute",
+                background: "white",
+                color: "black",
+                border: "10px",
+                left: `${sliderPosition - 40}px`,
+                top: "-60px",
+                padding: "5px 20px",
+                borderRadius: "40px",
+              }}
+            >
+              {currentTimeDisplay}
+            </p>
+            <div
+              ref={timelineRef}
+              style={{
+                position: "relative",
+                top: "0",
+                width: "100%",
+                height: "45px",
+                cursor: "pointer",
+                display: "flex",
+                clipPath: `inset(0px ${
+                  100 - calculatePosition(trimEnd) - 2
+                }% 0px ${calculatePosition(trimStart) - 2}% round 15px)`,
+              }}
               onMouseDown={handleMouseDown}
             >
               <div
@@ -417,10 +559,12 @@ function VideoUpload() {
                   top: 0,
                   bottom: 0,
                   border: "solid 1px",
-                  // backgroundColor: "rgba(255, 255, 255, 0.5)", // Semi-transparent white for visibility
+                  borderRadius: 0,
+                  width: "100%",
                   zIndex: 2, // Ensure it's above the thumbnails but below other controls
                 }}
               />
+
               {thumbnails.map((thumbnail, index) => (
                 <div
                   key={index}
@@ -429,10 +573,8 @@ function VideoUpload() {
                     height: "100%",
                     position: "relative",
                     // Apply lower opacity if outside the trim range
-                    opacity:
-                      thumbnail.time < trimStart || thumbnail.time > trimEnd
-                        ? 0.2
-                        : 1,
+                    opacity: 1,
+                    // clipPath: inset("10px 20px 30px 40px")
                   }}
                 >
                   <img
@@ -461,62 +603,6 @@ function VideoUpload() {
 
                   zIndex: 2,
                 }}
-              ></div>
-              <div
-                style={{
-                  position: "absolute",
-                  left: `${leftHandlePosition - 15}px`,
-                  height: "100%",
-                  width: "15px",
-                  backgroundColor: "white",
-                  borderRadius: " 15px 0 0 15px  ",
-                  cursor: "ew-resize",
-                  zIndex: 10,
-                }}
-              />
-              {/* Right Handle for End Time */}
-
-              <div
-                style={{
-                  position: "absolute",
-                  left: `${rightHandlePosition}px`,
-                  height: "100%",
-                  width: "15px",
-                  backgroundColor: "white",
-                  cursor: "ew-resize",
-                  zIndex: 10,
-                  borderRadius: "0 15px 15px 0",
-                }}
-              />
-              <p
-                style={{
-                  position: "absolute",
-                  background: "white",
-                  color: "black",
-                  border: "10px",
-                  left: `${sliderPosition - 40}px`,
-                  top: "-60px",
-                  padding: "5px 20px",
-                  borderRadius: "40px",
-                }}
-              >
-                {currentTimeDisplay}
-              </p>
-              <div
-                style={{
-                  position: "absolute",
-                  left: `${sliderPosition}px`,
-                  height: "59px",
-                  width: "5px",
-                  backgroundColor: "white",
-                  zIndex: 3,
-                  borderRadius: "50px",
-                  top: "-6px",
-                }}
-                onMouseDown={handleMouseDown} // Existing handler for desktop
-                onTouchStart={handleTouchStart} // Touch start
-                onTouchMove={handleTouchMove} // Touch move
-                onTouchEnd={handleTouchEnd} // Touch end
               ></div>
             </div>
           </div>
